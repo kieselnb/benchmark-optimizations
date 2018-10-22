@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <math.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../third-party/stb_image.h"
@@ -34,6 +35,13 @@ typedef struct Image {
     int width;
     unsigned char **data;
 } Image;
+
+typedef struct fImage {
+    int numChannels;
+    int height;
+    int width;
+    float **data;
+} fImage;
 
 void kernel()
 {
@@ -110,9 +118,34 @@ void saveImage(Image* image, const char *filename)
  * rows/columns on either side of the center. E.g. if radius is 2, then a 5x5
  * mask is made (2 rows/columns in each direction). If radius is 4, then
  * a 9x9 mask is made.
+ *
+ * This is a once-and-done event, so no optimizations here.
  */
-void generateGaussian(Image *filter, int radius)
+void generateGaussian(fImage *filter, int radius, float sigma)
 {
+    filter->numChannels = 1;
+    filter->height = 2*radius + 1;
+    filter->width = 2*radius + 1;
+
+    filter->data = (float**)malloc(sizeof(float*));
+    filter->data[0] = (float*)malloc(filter->height*filter->width*sizeof(float));
+
+    float twoSigmaSqrd = 2.0*sigma*sigma;
+    float sum = 0.0;
+    for (int i = 0; i < filter->height; i++) {
+        for (int j = 0; j < filter->width; j++) {
+            filter->data[0][i*filter->width + j] =
+                exp(-(i*i + j*j)/twoSigmaSqrd) / (M_PI * twoSigmaSqrd);
+            sum += filter->data[0][i*filter->width + j];
+        }
+    }
+
+    // normalize
+    for (int i = 0; i < filter->height; i++) {
+        for (int j = 0; j < filter->width; j++) {
+            filter->data[0][i*filter->width + j] /= sum;
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -122,8 +155,8 @@ int main(int argc, char *argv[])
     loadImage(&image, "image.png");
 
     // generate gaussian filter: store it as a single channel image
-    Image filter;
-    generateGaussian(&filter, 5);
+    fImage filter;
+    generateGaussian(&filter, 2, 1.0f);
 
     saveImage(&image, "newImage.png");
 
