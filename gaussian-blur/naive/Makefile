@@ -1,13 +1,13 @@
 # compiles the naive gaussian blur implementation
 
-EXE=blur-naive
+EXE=blur
 
-CFLAGS=-Wall -O2 -march=native
+CXXFLAGS=-Wall -O2 -march=native
 
 .PHONY: all
 all: $(EXE)
 
-$(EXE): blur-naive.cpp
+$(EXE): blur.cpp
 
 .PHONY: clean
 clean:

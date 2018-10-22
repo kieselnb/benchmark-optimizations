@@ -9,6 +9,12 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "third-party/stb_image_write.h"
 
+static __inline__ unsigned long long rdtsc(void) {
+  unsigned hi, lo;
+  __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+  return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
+}
+
 using namespace std;
 
 typedef vector<double> Array;
@@ -119,7 +125,7 @@ Image applyFilter(Image &image, Matrix &filter, int times)
 
 int main()
 {
-    clock_t total = 0, start, end;
+    unsigned long long sum = 0, start, end;
     int numIterations = 10;
 
     cout << "Loading image..." << endl;
@@ -130,17 +136,29 @@ int main()
         Matrix filter = getGaussian(5, 5, 10.0);
 
         cout << "Applying filter..." << endl;
-        start = clock();
+        start = rdtsc();
         newImage = applyFilter(image, filter);
-        end = clock();
-        total += (end - start);
+        end = rdtsc();
+        sum += (end - start);
     }
-    total = total / numIterations;
+    sum = (sum / numIterations) * (3.2 / 2.4);
 
     cout << "Saving image..." << endl;
     saveImage(newImage, "newImage.png");
     cout << "Done!" << endl;
 
-    cout << "Took " << total << " clock cycles on average." << endl;
-    cout << "That is, " << (float)total / (float)CLOCKS_PER_SEC << " s." << endl;
+    cout << "Took " << sum << " clock cycles on average." << endl;
+    
+    // since we are using a 5x5 filter, there will be 25 fma operations per 
+    // pixel, which amounts to 50 floating point ops per pixel
+    int height = image[0].size();
+    int width = image[0][0].size();
+    float flops = 50.0 * height * width;
+    // cycles / (cycles/second) = seconds
+    float gseconds = (float)sum / (2.4);
+    float gflops = flops / gseconds;
+
+    cout << "flops: " << flops << endl;
+    cout << "gseconds: " << gseconds << endl;
+    cout << "gflops: " << gflops << endl;
 }
