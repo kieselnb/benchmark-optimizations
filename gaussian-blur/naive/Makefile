@@ -4,6 +4,7 @@ EXE=blur-naive
 
 CFLAGS=-Wall -O2 -march=native
 
+.PHONY: all
 all: $(EXE)
 
 $(EXE): blur-naive.cpp

@@ -64,7 +64,8 @@ void saveImage(Image &image, const char *filename)
     int width = image[0][0].size();
     int x,y;
 
-    unsigned char *imageData = (unsigned char*)malloc(height*width*3 * sizeof(unsigned char));
+    unsigned char *imageData;
+    imageData = (unsigned char*)malloc(height*width*3 * sizeof(unsigned char));
 
     for (y=0 ; y<height ; y++) {
         for (x=0 ; x<width ; x++) {
@@ -73,7 +74,9 @@ void saveImage(Image &image, const char *filename)
             imageData[3*(y*width + x) + 2] = image[2][y][x];
         }
     }
-    stbi_write_png(filename, width, height, 3, imageData, 3*width*sizeof(unsigned char));
+    stbi_write_png(filename, width, height, 3, imageData,
+            3*width*sizeof(unsigned char));
+
     free(imageData);
 }
 
@@ -124,10 +127,10 @@ int main()
     Image newImage;
 
     for (int i = 0; i < numIterations; i++) {
-        start = clock();
         Matrix filter = getGaussian(5, 5, 10.0);
 
         cout << "Applying filter..." << endl;
+        start = clock();
         newImage = applyFilter(image, filter);
         end = clock();
         total += (end - start);
