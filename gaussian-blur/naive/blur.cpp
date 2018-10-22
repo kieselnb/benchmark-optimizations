@@ -4,10 +4,10 @@
 #include <cmath>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "third-party/stb_image.h"
+#include "../third-party/stb_image.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "third-party/stb_image_write.h"
+#include "../third-party/stb_image_write.h"
 
 static __inline__ unsigned long long rdtsc(void) {
   unsigned hi, lo;
