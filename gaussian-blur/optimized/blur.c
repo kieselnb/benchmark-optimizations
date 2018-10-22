@@ -8,19 +8,13 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../third-party/stb_image.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "../third-party/stb_image_write.h"
-
-typedef struct Image {
-    int numChannels;
-    int height;
-    int width;
-    unsigned char **data;
-} Image;
 
 static __inline__ unsigned long long rdtsc(void)
 {
@@ -29,10 +23,28 @@ static __inline__ unsigned long long rdtsc(void)
   return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
 }
 
+/**
+ * Stores an image in row-major format. Each color channel is accessed from
+ * the top level (e.g. data[channel][pixel]) so that pixels of the same channel
+ * are contiguous in memory.
+ */
+typedef struct Image {
+    int numChannels;
+    int height;
+    int width;
+    unsigned char **data;
+} Image;
+
 void kernel()
 {
+    printf("not implemented yet\n");
 }
 
+/**
+ * Loads a png image from disk. If the image has 4 channels (i.e. is RGBA),
+ * the transparency channel is ignored. If the image has more than 4 channels,
+ * an error is thrown and the program exits.
+ */
 void loadImage(Image* image, const char *filename)
 {
     int x, y, n;
@@ -45,11 +57,12 @@ void loadImage(Image* image, const char *filename)
 
     if (n > 3) {
         if (n == 4) {
-            printf("Ignoring transparency layer\n");
+            printf("loadImage: Ignoring transparency layer\n");
             image->numChannels = 3;
         }
         else {
             printf("I don't know how to handle %d channels, bailing out\n", n);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -68,6 +81,9 @@ void loadImage(Image* image, const char *filename)
     free(imageData);
 }
 
+/**
+ * Saves png image to disk. Must be a 3-channel image (i.e. RGB).
+ */
 void saveImage(Image* image, const char *filename)
 {
     assert(image->numChannels == 3);
@@ -89,11 +105,25 @@ void saveImage(Image* image, const char *filename)
     free(imageData);
 }
 
+/**
+ * Generates a Gaussian filter of the desired radius. Radius is the number of
+ * rows/columns on either side of the center. E.g. if radius is 2, then a 5x5
+ * mask is made (2 rows/columns in each direction). If radius is 4, then
+ * a 9x9 mask is made.
+ */
+void generateGaussian(Image *filter, int radius)
+{
+}
+
 int main(int argc, char *argv[])
 {
-    printf("Hello, Earthlings\n");
+    // load in image to be blurred
     Image image;
     loadImage(&image, "image.png");
+
+    // generate gaussian filter: store it as a single channel image
+    Image filter;
+    generateGaussian(&filter, 5);
 
     saveImage(&image, "newImage.png");
 
