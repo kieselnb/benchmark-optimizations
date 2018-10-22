@@ -2,7 +2,12 @@
 #include <vector>
 #include <assert.h>
 #include <cmath>
-#include <png++/png.hpp>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "third-party/stb_image.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "third-party/stb_image_write.h"
 
 using namespace std;
 
@@ -34,18 +39,20 @@ Matrix getGaussian(int height, int width, double sigma)
 
 Image loadImage(const char *filename)
 {
-    png::image<png::rgb_pixel> image(filename);
-    Image imageMatrix(3, Matrix(image.get_height(), Array(image.get_width())));
+    int x, y, n;
+    unsigned char *imageData = stbi_load(filename, &x, &y, &n, 0);
+    Image imageMatrix(3, Matrix(y, Array(x)));
 
     int h,w;
-    for (h=0 ; h<image.get_height() ; h++) {
-        for (w=0 ; w<image.get_width() ; w++) {
-            imageMatrix[0][h][w] = image[h][w].red;
-            imageMatrix[1][h][w] = image[h][w].green;
-            imageMatrix[2][h][w] = image[h][w].blue;
+    for (h=0 ; h<y ; h++) {
+        for (w=0 ; w<x ; w++) {
+            imageMatrix[0][h][w] = imageData[n*(h*x + w)];
+            imageMatrix[1][h][w] = imageData[n*(h*x + w) + 1];
+            imageMatrix[2][h][w] = imageData[n*(h*x + w) + 2];
         }
     }
 
+    stbi_image_free(imageData);
     return imageMatrix;
 }
 
@@ -57,16 +64,17 @@ void saveImage(Image &image, const char *filename)
     int width = image[0][0].size();
     int x,y;
 
-    png::image<png::rgb_pixel> imageFile(width, height);
+    unsigned char *imageData = (unsigned char*)malloc(height*width*3 * sizeof(unsigned char));
 
     for (y=0 ; y<height ; y++) {
         for (x=0 ; x<width ; x++) {
-            imageFile[y][x].red = image[0][y][x];
-            imageFile[y][x].green = image[1][y][x];
-            imageFile[y][x].blue = image[2][y][x];
+            imageData[3*(y*width + x)] = image[0][y][x];
+            imageData[3*(y*width + x) + 1] = image[1][y][x];
+            imageData[3*(y*width + x) + 2] = image[2][y][x];
         }
     }
-    imageFile.write(filename);
+    stbi_write_png(filename, width, height, 3, imageData, 3*width*sizeof(unsigned char));
+    free(imageData);
 }
 
 Image applyFilter(Image &image, Matrix &filter){

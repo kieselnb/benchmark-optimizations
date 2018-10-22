@@ -2,7 +2,6 @@
 
 EXE=blur-naive
 
-LDFLAGS=-lpng
 CFLAGS=-Wall -O2 -march=native
 
 all: $(EXE)

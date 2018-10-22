@@ -1,2 +1,5 @@
 # ignore naive gaussian blur binary
 gaussian-blur/naive/blur-naive
+
+# ignore test images (for now)
+*.png
