@@ -126,7 +126,7 @@ Image applyFilter(Image &image, Matrix &filter, int times)
 int main()
 {
     unsigned long long sum = 0, start, end;
-    int numIterations = 10;
+    int numIterations = 100;
 
     cout << "Loading image..." << endl;
     Image image = loadImage("image.png");
