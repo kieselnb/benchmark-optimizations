@@ -1,13 +1,20 @@
 # compiles the naive gaussian blur implementation
 
-EXE=blur
+CUDACC=nvcc
+
+EXE=blur blur-cuda
 
 CXXFLAGS=-Wall -O2 -march=native
+
+CUDAFLAGS=-lGL -lglut
 
 .PHONY: all
 all: $(EXE)
 
-$(EXE): blur.cpp
+blur: blur.cpp
+
+blur-cuda: kernel.cu
+	$(CUDACC) -o $@ $< $(CUDAFLAGS)
 
 .PHONY: clean
 clean:
