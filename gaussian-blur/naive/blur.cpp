@@ -153,7 +153,8 @@ int main()
     // pixel, which amounts to 50 floating point ops per pixel
     int height = image[0].size();
     int width = image[0][0].size();
-    float flops = 50.0 * height * width;
+    // (multiply+add) * (filterWidth * filterHeight) * (imageWidth * imageHeight) * imageChannels
+    float flops = 2.0 * 5.0*5.0 * height * width * 3.0;
     // cycles / (cycles/second) = seconds
     float gseconds = (float)sum / (2.4);
     float gflops = flops / gseconds;
