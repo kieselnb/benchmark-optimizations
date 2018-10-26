@@ -151,10 +151,11 @@ int main()
     
     // since we are using a 5x5 filter, there will be 25 fma operations per 
     // pixel, which amounts to 50 floating point ops per pixel
+    int channels = image.size();
     int height = image[0].size();
     int width = image[0][0].size();
     // (multiply+add) * (filterWidth * filterHeight) * (imageWidth * imageHeight) * imageChannels
-    float flops = 2.0 * 5.0*5.0 * height * width * 3.0;
+    float flops = 2.0 * 5.0*5.0 * height * width * channels;
     // cycles / (cycles/second) = seconds
     float gseconds = (float)sum / (2.4);
     float gflops = flops / gseconds;
