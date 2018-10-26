@@ -161,10 +161,14 @@ int main(int argc, char *argv[])
     saveImage(&image, "newImage.png");
 
     // free here
+    // image
     for (int i = 0; i < image.numChannels; i++) {
         free(image.data[i]);
     }
     free(image.data);
+    // filter - we know it's 1-D, so no loop
+    free(filter.data[0]);
+    free(filter.data);
 
     return 0;
 }
