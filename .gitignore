@@ -1,5 +1,6 @@
 # ignore gaussian blur binaries
 gaussian-blur/naive/blur
+gaussian-blur/naive/blur-cuda
 gaussian-blur/optimized/blur
 
 # ignore test images (for now)

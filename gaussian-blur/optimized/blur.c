@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <math.h>
+#include <strings.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../third-party/stb_image.h"
@@ -47,12 +48,13 @@ void kernel(Image *outImage, Image *inImage, fImage *kernel)
 {
     // implement basic kernel first
     int kernRadius = floor(kernel->width / 2);
-    for (int c = 0; c < inImage->numChannels; c++) {
-        for (int ih = 0; ih < inImage->height; ih++) {
-            for (int iw = 0; iw < inImage->width; iw++) {
-                for (int kh = 0; kh < kernel->height; kh++) {
+    int c, ih, iw, kh, kw;
+    for (c = 0; c < inImage->numChannels; c++) {
+        for (ih = 0; ih < inImage->height; ih++) {
+            for (iw = 0; iw < inImage->width; iw++) {
+                for (kh = 0; kh < kernel->height; kh++) {
                     int y = ih + kh - kernRadius;
-                    for (int kw = 0; kw < kernel->width; kw++) {
+                    for (kw = 0; kw < kernel->width; kw++) {
                         int x = iw + kw - kernRadius;
                         if (x >= 0 && y >= 0
                                 && x < inImage->width && y < inImage->height) {
@@ -93,10 +95,11 @@ void loadImage(Image* image, const char *filename)
     }
 
     image->data = (unsigned char**)malloc(image->numChannels * sizeof(unsigned char*));
-    for (int i = 0; i < image->numChannels; i++) {
+    int i, j, k;
+    for (i = 0; i < image->numChannels; i++) {
         image->data[i] = (unsigned char*)malloc(x*y * sizeof(unsigned char));
-        for (int j = 0; j < y; j++) {
-            for (int k = 0; k < x; k++) {
+        for (j = 0; j < y; j++) {
+            for (k = 0; k < x; k++) {
                 image->data[i][j*x + k] = imageData[n*(j*x + k) + i];
             }
         }
@@ -117,8 +120,9 @@ void saveImage(Image* image, const char *filename)
     unsigned char *imageData;
     imageData = (unsigned char*)malloc(image->height*image->width*3 * sizeof(unsigned char));
 
-    for (int y = 0; y < image->height; y++) {
-        for (int x = 0; x < image->width; x++) {
+    int y, x;
+    for (y = 0; y < image->height; y++) {
+        for (x = 0; x < image->width; x++) {
             imageData[3*(y*image->width + x)] = image->data[0][y*image->width + x];
             imageData[3*(y*image->width + x) + 1] = image->data[1][y*image->width + x];
             imageData[3*(y*image->width + x) + 2] = image->data[2][y*image->width + x];
@@ -150,8 +154,9 @@ void generateGaussian(fImage *filter, int radius, float sigma)
 
     float twoSigmaSqrd = 2.0*sigma*sigma;
     float sum = 0.0;
-    for (int i = 0; i < filter->height; i++) {
-        for (int j = 0; j < filter->width; j++) {
+    int i, j;
+    for (i = 0; i < filter->height; i++) {
+        for (j = 0; j < filter->width; j++) {
             filter->data[0][i*filter->width + j] =
                 exp(-(i*i + j*j)/twoSigmaSqrd) / (M_PI * twoSigmaSqrd);
             sum += filter->data[0][i*filter->width + j];
@@ -159,8 +164,8 @@ void generateGaussian(fImage *filter, int radius, float sigma)
     }
 
     // normalize
-    for (int i = 0; i < filter->height; i++) {
-        for (int j = 0; j < filter->width; j++) {
+    for (i = 0; i < filter->height; i++) {
+        for (j = 0; j < filter->width; j++) {
             filter->data[0][i*filter->width + j] /= sum;
         }
     }
@@ -172,6 +177,8 @@ int main(int argc, char *argv[])
     int iterations = 50;
     unsigned long long start, end, sum = 0;
 
+    int i, j;
+
     // load in image to be blurred
     Image image;
     loadImage(&image, "image.png");
@@ -182,7 +189,7 @@ int main(int argc, char *argv[])
     outImage.height = image.height;
     outImage.width = image.width;
     outImage.data = (unsigned char**)malloc(outImage.numChannels * sizeof(unsigned char*));
-    for (int i = 0; i < outImage.numChannels; i++) {
+    for (i = 0; i < outImage.numChannels; i++) {
         outImage.data[i] = (unsigned char*)malloc(outImage.width * outImage.height * sizeof(unsigned char));
     }
 
@@ -193,10 +200,10 @@ int main(int argc, char *argv[])
 
     printf("Performing blur...\n");
     // do the blur
-    for (int i = 0; i < iterations; i++) {
+    for (i = 0; i < iterations; i++) {
         printf("Iteration %d/%d\n", i+1, iterations);
         // reset data
-        for (int j = 0; j < outImage.numChannels; j++) {
+        for (j = 0; j < outImage.numChannels; j++) {
             bzero(outImage.data[j], outImage.width * outImage.height * sizeof(unsigned char));
         }
 
@@ -224,7 +231,7 @@ int main(int argc, char *argv[])
 
     // free here
     // image
-    for (int i = 0; i < image.numChannels; i++) {
+    for (i = 0; i < image.numChannels; i++) {
         free(image.data[i]);
     }
     free(image.data);
@@ -232,7 +239,7 @@ int main(int argc, char *argv[])
     free(filter.data[0]);
     free(filter.data);
     // out image
-    for (int i = 0; i < outImage.numChannels; i++) {
+    for (i = 0; i < outImage.numChannels; i++) {
         free(outImage.data[i]);
     }
     free(outImage.data);
