@@ -194,6 +194,7 @@ int main(int argc, char *argv[])
     printf("Performing blur...\n");
     // do the blur
     for (int i = 0; i < iterations; i++) {
+        printf("Iteration %d/%d\n", i+1, iterations);
         // reset data
         for (int j = 0; j < outImage.numChannels; j++) {
             bzero(outImage.data[j], outImage.width * outImage.height * sizeof(unsigned char));
