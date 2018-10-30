@@ -43,9 +43,27 @@ typedef struct fImage {
     float **data;
 } fImage;
 
-void kernel()
+void kernel(Image *outImage, Image *inImage, fImage *kernel)
 {
-    printf("not implemented yet\n");
+    // implement basic kernel first
+    int kernRadius = floor(kernel->width / 2);
+    for (int c = 0; c < inImage->numChannels; c++) {
+        for (int ih = 0; ih < inImage->height; ih++) {
+            for (int iw = 0; iw < inImage->width; iw++) {
+                for (int kh = 0; kh < kernel->height; kh++) {
+                    int y = ih + kh - kernRadius;
+                    for (int kw = 0; kw < kernel->width; kw++) {
+                        int x = iw + kw - kernRadius;
+                        if (x >= 0 && y >= 0
+                                && x < inImage->width && y < inImage->height) {
+                            outImage->data[c][ih*outImage->width + iw] +=
+                                inImage->data[c][y*inImage->width + x] * kernel->data[0][kh*kernel->width + kw];
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -150,15 +168,58 @@ void generateGaussian(fImage *filter, int radius, float sigma)
 
 int main(int argc, char *argv[])
 {
+    // do multiple iterations to get a steady time
+    int iterations = 50;
+    unsigned long long start, end, sum = 0;
+
     // load in image to be blurred
     Image image;
     loadImage(&image, "image.png");
 
+    // create output space
+    Image outImage;
+    outImage.numChannels = image.numChannels;
+    outImage.height = image.height;
+    outImage.width = image.width;
+    outImage.data = (unsigned char**)malloc(outImage.numChannels * sizeof(unsigned char*));
+    for (int i = 0; i < outImage.numChannels; i++) {
+        outImage.data[i] = (unsigned char*)malloc(outImage.width * outImage.height * sizeof(unsigned char));
+    }
+
     // generate gaussian filter: store it as a single channel image
+    printf("Generating gaussian filter\n");
     fImage filter;
     generateGaussian(&filter, 2, 1.0f);
 
-    saveImage(&image, "newImage.png");
+    printf("Performing blur...\n");
+    // do the blur
+    for (int i = 0; i < iterations; i++) {
+        // reset data
+        for (int j = 0; j < outImage.numChannels; j++) {
+            bzero(outImage.data[j], outImage.width * outImage.height * sizeof(unsigned char));
+        }
+
+        start = rdtsc();
+        kernel(&outImage, &image, &filter);
+        end = rdtsc();
+        sum += (end - start);
+    }
+
+    printf("Saving blurred image\n");
+    saveImage(&outImage, "newImage.png");
+
+    // since we are using a 5x5 filter, there will be 25 fma operations per 
+    // pixel, which amounts to 50 floating point ops per pixel
+    int channels = outImage.numChannels;
+    int height = outImage.height;
+    int width = outImage.width;
+    // (multiply+add) * (filterWidth * filterHeight) * (imageWidth * imageHeight) * imageChannels
+    float flops = 2.0 * 5.0*5.0 * height * width * channels;
+    // cycles / (cycles/second) = seconds
+    float gseconds = (float)sum / (2.4);
+    float gflops = flops / gseconds;
+
+    printf("%f gflops\n", gflops);
 
     // free here
     // image
@@ -169,6 +230,11 @@ int main(int argc, char *argv[])
     // filter - we know it's 1-D, so no loop
     free(filter.data[0]);
     free(filter.data);
+    // out image
+    for (int i = 0; i < outImage.numChannels; i++) {
+        free(outImage.data[i]);
+    }
+    free(outImage.data);
 
     return 0;
 }
