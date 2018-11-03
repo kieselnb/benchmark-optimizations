@@ -33,20 +33,21 @@ static __inline__ unsigned long long rdtsc(void)
  * are contiguous in memory.
  */
 typedef struct Image {
-    int numChannels;
+    int channels;
     int height;
     int width;
     unsigned char **data;
 } Image;
 
 typedef struct fImage {
-    int numChannels;
+    int channels;
     int height;
     int width;
     float **data;
 } fImage;
 
-void optKernel(float *outImage, float *inImage, int oStride, int iStride, float *kernel)
+void optKernel(float *outImage, int oStride, float *inImage, int iStride,
+        float *kernel)
 {
     // assume 4x4 output image and 5x5 filter
     // also assume 8x8 input image to match 4x4 output + 5x5 filter
@@ -90,12 +91,12 @@ void blur(fImage *outImage, fImage *inImage, fImage *kernel) {
     assert(kernel->height == 5);
 
     int c, ih, iw;
-    for (c = 0; c < outImage->numChannels; c++) {
+    for (c = 0; c < outImage->channels; c++) {
         for (ih = 0; ih < outImage->height; ih += 4) {
             for (iw = 0; iw < outImage->width; iw += 4) {
                 optKernel(outImage->data[c] + ih*outImage->width + iw,
-                          inImage->data[c] + ih*inImage->width + iw,
                           outImage->width,
+                          inImage->data[c] + ih*inImage->width + iw,
                           inImage->width,
                           kernel->data[0]);
             }
@@ -114,13 +115,14 @@ void loadImage(Image* image, const char *filename)
     unsigned char *imageData = stbi_load(filename, &x, &y, &n, 0);
 
     // store data in custom container
-    image->numChannels = n;
+    image->channels = n;
     image->height = y;
     image->width = x;
 
-    image->data = (unsigned char**)malloc(image->numChannels * sizeof(unsigned char*));
+    image->data =
+        (unsigned char**)malloc(image->channels * sizeof(unsigned char*));
     int i, j, k;
-    for (i = 0; i < image->numChannels; i++) {
+    for (i = 0; i < image->channels; i++) {
         image->data[i] = (unsigned char*)malloc(x*y * sizeof(unsigned char));
         for (j = 0; j < y; j++) {
             for (k = 0; k < x; k++) {
@@ -130,7 +132,7 @@ void loadImage(Image* image, const char *filename)
     }
     
     printf("Image details: %dx%d, %d channels\n", image->width, image->height,
-            image->numChannels);
+            image->channels);
     free(imageData);
 }
 
@@ -140,21 +142,21 @@ void loadImage(Image* image, const char *filename)
 void saveImage(Image* image, const char *filename)
 {
     unsigned char *imageData;
-    int numPixels = image->height * image->width * image->numChannels;
+    int numPixels = image->height * image->width * image->channels;
     imageData = (unsigned char*)malloc(numPixels * sizeof(unsigned char));
 
     int y, x, c;
     for (y = 0; y < image->height; y++) {
         for (x = 0; x < image->width; x++) {
-            for (c = 0; c < image->numChannels; c++) {
-                imageData[image->numChannels*(y*image->width + x) + c] =
+            for (c = 0; c < image->channels; c++) {
+                imageData[image->channels*(y*image->width + x) + c] =
                     image->data[c][y*image->width + x];
             }
         }
     }
 
-    stbi_write_png(filename, image->width, image->height, image->numChannels,
-            imageData, image->numChannels*image->width*sizeof(unsigned char));
+    stbi_write_png(filename, image->width, image->height, image->channels,
+            imageData, image->channels*image->width*sizeof(unsigned char));
 
     free(imageData);
 }
@@ -169,12 +171,13 @@ void saveImage(Image* image, const char *filename)
  */
 void generateGaussian(fImage *filter, int radius, float sigma)
 {
-    filter->numChannels = 1;
+    filter->channels = 1;
     filter->height = 2*radius + 1;
     filter->width = 2*radius + 1;
 
     filter->data = (float**)malloc(sizeof(float*));
-    filter->data[0] = (float*)malloc(filter->height*filter->width*sizeof(float));
+    int numElements = filter->height * filter->width;
+    filter->data[0] = (float*)malloc(numElements * sizeof(float));
 
     float twoSigmaSqrd = 2.0*sigma*sigma;
     float sum = 0.0;
@@ -211,17 +214,18 @@ int main(int argc, char *argv[])
 
     // convert image to floats and add padding
     fImage inImage;
-    inImage.numChannels = image.numChannels;
+    inImage.channels = image.channels;
     inImage.height = image.height + 4;
     inImage.width = image.width + 4;
-    inImage.data = (float**)malloc(inImage.numChannels * sizeof(float*));
-    for (i = 0; i < inImage.numChannels; i++) {
-        inImage.data[i] = (float*)malloc(inImage.height*inImage.width*sizeof(float));
-        bzero(inImage.data[i], inImage.height*inImage.width*sizeof(float));
+    inImage.data = (float**)malloc(inImage.channels * sizeof(float*));
+    int numPixelsPerChannel = inImage.width * inImage.height;
+    for (i = 0; i < inImage.channels; i++) {
+        inImage.data[i] = (float*)malloc(numPixelsPerChannel * sizeof(float));
+        bzero(inImage.data[i], numPixelsPerChannel * sizeof(float));
     }
 
     int c;
-    for (c = 0; c < image.numChannels; c++) {
+    for (c = 0; c < image.channels; c++) {
         for (i = 0; i < image.height; i++) {
             for (j = 0; j < image.width; j++) {
                 inImage.data[c][(i+2)*inImage.width + j+2] =
@@ -232,12 +236,13 @@ int main(int argc, char *argv[])
 
     // create output space
     fImage outImage;
-    outImage.numChannels = image.numChannels;
+    outImage.channels = image.channels;
     outImage.height = image.height;
     outImage.width = image.width;
-    outImage.data = (float**)malloc(outImage.numChannels * sizeof(float*));
-    for (i = 0; i < outImage.numChannels; i++) {
-        outImage.data[i] = (float*)malloc(outImage.width * outImage.height * sizeof(float));
+    outImage.data = (float**)malloc(outImage.channels * sizeof(float*));
+    numPixelsPerChannel = outImage.width * outImage.height;
+    for (i = 0; i < outImage.channels; i++) {
+        outImage.data[i] = (float*)malloc(numPixelsPerChannel * sizeof(float));
     }
 
     // generate gaussian filter: store it as a single channel image
@@ -249,8 +254,8 @@ int main(int argc, char *argv[])
     // do the blur
     for (i = 0; i < iterations; i++) {
         // reset data
-        for (j = 0; j < outImage.numChannels; j++) {
-            bzero(outImage.data[j], outImage.width * outImage.height * sizeof(float));
+        for (j = 0; j < outImage.channels; j++) {
+            bzero(outImage.data[j], numPixelsPerChannel * sizeof(float));
         }
 
         start = rdtsc();
@@ -260,16 +265,18 @@ int main(int argc, char *argv[])
     }
 
     Image outImageChar;
-    outImageChar.numChannels = outImage.numChannels;
+    outImageChar.channels = outImage.channels;
     outImageChar.height = outImage.height;
     outImageChar.width = outImage.width;
-    outImageChar.data = (unsigned char**)malloc(outImageChar.numChannels * sizeof(unsigned char*));
-    for (c = 0; c < outImageChar.numChannels; c++) {
-        outImageChar.data[c] = (unsigned char*)malloc(outImageChar.width * outImageChar.height * sizeof(unsigned char));
+    outImageChar.data =
+        (unsigned char**)malloc(outImageChar.channels * sizeof(unsigned char*));
+    for (c = 0; c < outImageChar.channels; c++) {
+        outImageChar.data[c] =
+            (unsigned char*)malloc(numPixelsPerChannel * sizeof(unsigned char));
     }
 
     // scale the image back to unsigned char
-    for (c = 0; c < outImage.numChannels; c++) {
+    for (c = 0; c < outImage.channels; c++) {
         for (i = 0; i < outImage.height; i++) {
             for (j = 0; j < outImage.width; j++) {
                 outImageChar.data[c][i*outImage.width + j] =
@@ -282,11 +289,11 @@ int main(int argc, char *argv[])
     saveImage(&outImageChar, "newImage.png");
 
     // just print out number of cycles
-    printf("cycles: %f\n", sum * (3.2 / 2.4));
+    printf("cycles: %f\n", (float)sum * (3.2 / 2.4) / (float)iterations);
 
     // free here
     // image
-    for (i = 0; i < image.numChannels; i++) {
+    for (i = 0; i < image.channels; i++) {
         free(image.data[i]);
     }
     free(image.data);
@@ -294,7 +301,7 @@ int main(int argc, char *argv[])
     free(filter.data[0]);
     free(filter.data);
     // out image
-    for (i = 0; i < outImage.numChannels; i++) {
+    for (i = 0; i < outImage.channels; i++) {
         free(outImage.data[i]);
     }
     free(outImage.data);

@@ -5,3 +5,6 @@ gaussian-blur/optimized/blur
 
 # ignore test images (for now)
 *.png
+
+# ignore matlab autosave files
+*.m~

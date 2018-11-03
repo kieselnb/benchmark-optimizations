@@ -4,15 +4,15 @@ close all
 clear
 
 % data from execution runs
-cycles = [  111832573828.000015;
-            52776829108.000008;
-            28934324004.000004;
-            13410113864.000002;
-            7277940352.000001;
-            3233988332.000000;
-            1797784464.000000;
-            849847248.000000;
-            212438680.000000
+cycles = [  2243798848.853333;
+            1036075444.906667;
+            557935547.733333;
+            260110308.693333;
+            137921918.293333;
+            62697444.693333;
+            38269037.226667;
+            14318504.960000;
+            4229240.746667
           ];
 
 % define constants first
@@ -32,7 +32,8 @@ filterRadius = 2;
 
 opsPerFma = 2; % multiply and add
 
-baseClock = 2.4; % cycles / second
+baseClock = 2.4; % billion cycles / second
+boostClock = 3.2;
 
 % calculate number of floating point operations
 filterElements = (2*filterRadius + 1)^2;
@@ -40,5 +41,6 @@ imPixels = imageSizes(:,1) .* imageSizes(:,2) .* imChannels;
 flOps = imPixels .* filterElements .* opsPerFma;
 
 % calculate time it took
-GFLOPs = flOps ./ (cycles ./ baseClock);
-plot(imPixels, GFLOPs)
+GFLOPs = flOps ./ (cycles ./ boostClock)
+
+% plot(imPixels, GFLOPs)
