@@ -200,7 +200,7 @@ void generateGaussian(fImage *filter, int radius, float sigma)
 int main(int argc, char *argv[])
 {
     // do multiple iterations to get a steady time
-    int iterations = 1;
+    int iterations = atoi(argv[1]);
     unsigned long long start, end, sum = 0;
 
     int i, j;
@@ -245,10 +245,9 @@ int main(int argc, char *argv[])
     fImage filter;
     generateGaussian(&filter, 2, 1.0f);
 
-    printf("Performing blur...\n");
+    printf("Performing %d blur(s)...\n", iterations);
     // do the blur
     for (i = 0; i < iterations; i++) {
-        printf("Iteration %d/%d\n", i+1, iterations);
         // reset data
         for (j = 0; j < outImage.numChannels; j++) {
             bzero(outImage.data[j], outImage.width * outImage.height * sizeof(float));
