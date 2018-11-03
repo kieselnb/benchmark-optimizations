@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <strings.h>
+#include <immintrin.h>
+#include <limits.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../third-party/stb_image.h"
@@ -44,25 +46,58 @@ typedef struct fImage {
     float **data;
 } fImage;
 
-void kernel(Image *outImage, Image *inImage, fImage *kernel)
+void optKernel(float *outImage, float *inImage, int oStride, int iStride, float *kernel)
 {
-    // implement basic kernel first
-    int kernRadius = floor(kernel->width / 2);
-    int c, ih, iw, kh, kw;
-    for (c = 0; c < inImage->numChannels; c++) {
-        for (ih = 0; ih < inImage->height; ih++) {
-            for (iw = 0; iw < inImage->width; iw++) {
-                for (kh = 0; kh < kernel->height; kh++) {
-                    int y = ih + kh - kernRadius;
-                    for (kw = 0; kw < kernel->width; kw++) {
-                        int x = iw + kw - kernRadius;
-                        if (x >= 0 && y >= 0
-                                && x < inImage->width && y < inImage->height) {
-                            outImage->data[c][ih*outImage->width + iw] +=
-                                inImage->data[c][y*inImage->width + x] * kernel->data[0][kh*kernel->width + kw];
-                        }
-                    }
-                }
+    // assume 4x4 output image and 5x5 filter
+    // also assume 8x8 input image to match 4x4 output + 5x5 filter
+
+    // load in output elements
+    __m128 out[4];
+    out[0] = _mm_loadu_ps(outImage);
+    out[1] = _mm_loadu_ps(outImage+oStride);
+    out[2] = _mm_loadu_ps(outImage+2*oStride);
+    out[3] = _mm_loadu_ps(outImage+3*oStride);
+
+    int i, j;
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 5; j++) {
+            // load up appropriate element of the mask
+            __m128 mask;
+            mask = _mm_broadcast_ss(kernel + i*5 + j);
+
+            // load in input image elements
+            __m128 in[4];
+            in[0] = _mm_loadu_ps(inImage + i*iStride + j);
+            in[1] = _mm_loadu_ps(inImage + (i+1)*iStride + j);
+            in[2] = _mm_loadu_ps(inImage + (i+2)*iStride + j);
+            in[3] = _mm_loadu_ps(inImage + (i+3)*iStride + j);
+
+            out[0] = _mm_fmadd_ps(in[0], mask, out[0]);
+            out[1] = _mm_fmadd_ps(in[1], mask, out[1]);
+            out[2] = _mm_fmadd_ps(in[2], mask, out[2]);
+            out[3] = _mm_fmadd_ps(in[3], mask, out[3]);
+        }
+    }
+
+    _mm_storeu_ps(outImage, out[0]);
+    _mm_storeu_ps(outImage+oStride, out[1]);
+    _mm_storeu_ps(outImage+2*oStride, out[2]);
+    _mm_storeu_ps(outImage+3*oStride, out[3]);
+}
+
+void blur(fImage *outImage, fImage *inImage, fImage *kernel) {
+    assert(kernel->width == 5);
+    assert(kernel->height == 5);
+
+    int c, ih, iw;
+    for (c = 0; c < outImage->numChannels; c++) {
+        for (ih = 0; ih < outImage->height; ih += 4) {
+            for (iw = 0; iw < outImage->width; iw += 4) {
+                optKernel(outImage->data[c] + ih*outImage->width + iw,
+                          inImage->data[c] + ih*inImage->width + iw,
+                          outImage->width,
+                          inImage->width,
+                          kernel->data[0]);
             }
         }
     }
@@ -82,17 +117,6 @@ void loadImage(Image* image, const char *filename)
     image->numChannels = n;
     image->height = y;
     image->width = x;
-
-    if (n > 3) {
-        if (n == 4) {
-            printf("loadImage: Ignoring transparency layer\n");
-            image->numChannels = 3;
-        }
-        else {
-            printf("I don't know how to handle %d channels, bailing out\n", n);
-            exit(EXIT_FAILURE);
-        }
-    }
 
     image->data = (unsigned char**)malloc(image->numChannels * sizeof(unsigned char*));
     int i, j, k;
@@ -115,22 +139,22 @@ void loadImage(Image* image, const char *filename)
  */
 void saveImage(Image* image, const char *filename)
 {
-    assert(image->numChannels == 3);
-
     unsigned char *imageData;
-    imageData = (unsigned char*)malloc(image->height*image->width*3 * sizeof(unsigned char));
+    int numPixels = image->height * image->width * image->numChannels;
+    imageData = (unsigned char*)malloc(numPixels * sizeof(unsigned char));
 
-    int y, x;
+    int y, x, c;
     for (y = 0; y < image->height; y++) {
         for (x = 0; x < image->width; x++) {
-            imageData[3*(y*image->width + x)] = image->data[0][y*image->width + x];
-            imageData[3*(y*image->width + x) + 1] = image->data[1][y*image->width + x];
-            imageData[3*(y*image->width + x) + 2] = image->data[2][y*image->width + x];
+            for (c = 0; c < image->numChannels; c++) {
+                imageData[image->numChannels*(y*image->width + x) + c] =
+                    image->data[c][y*image->width + x];
+            }
         }
     }
 
-    stbi_write_png(filename, image->width, image->height, 3, imageData,
-            3*image->width*sizeof(unsigned char));
+    stbi_write_png(filename, image->width, image->height, image->numChannels,
+            imageData, image->numChannels*image->width*sizeof(unsigned char));
 
     free(imageData);
 }
@@ -156,9 +180,11 @@ void generateGaussian(fImage *filter, int radius, float sigma)
     float sum = 0.0;
     int i, j;
     for (i = 0; i < filter->height; i++) {
+        float y = i - radius;
         for (j = 0; j < filter->width; j++) {
+            float x = j - radius;
             filter->data[0][i*filter->width + j] =
-                exp(-(i*i + j*j)/twoSigmaSqrd) / (M_PI * twoSigmaSqrd);
+                exp(-((x*x + y*y)/twoSigmaSqrd)) / (M_PI * twoSigmaSqrd);
             sum += filter->data[0][i*filter->width + j];
         }
     }
@@ -174,7 +200,7 @@ void generateGaussian(fImage *filter, int radius, float sigma)
 int main(int argc, char *argv[])
 {
     // do multiple iterations to get a steady time
-    int iterations = 50;
+    int iterations = 1;
     unsigned long long start, end, sum = 0;
 
     int i, j;
@@ -183,14 +209,35 @@ int main(int argc, char *argv[])
     Image image;
     loadImage(&image, "image.png");
 
+    // convert image to floats and add padding
+    fImage inImage;
+    inImage.numChannels = image.numChannels;
+    inImage.height = image.height + 4;
+    inImage.width = image.width + 4;
+    inImage.data = (float**)malloc(inImage.numChannels * sizeof(float*));
+    for (i = 0; i < inImage.numChannels; i++) {
+        inImage.data[i] = (float*)malloc(inImage.height*inImage.width*sizeof(float));
+        bzero(inImage.data[i], inImage.height*inImage.width*sizeof(float));
+    }
+
+    int c;
+    for (c = 0; c < image.numChannels; c++) {
+        for (i = 0; i < image.height; i++) {
+            for (j = 0; j < image.width; j++) {
+                inImage.data[c][(i+2)*inImage.width + j+2] =
+                    (float)image.data[c][i*image.width + j] / (float)UCHAR_MAX;
+            }
+        }
+    }
+
     // create output space
-    Image outImage;
+    fImage outImage;
     outImage.numChannels = image.numChannels;
     outImage.height = image.height;
     outImage.width = image.width;
-    outImage.data = (unsigned char**)malloc(outImage.numChannels * sizeof(unsigned char*));
+    outImage.data = (float**)malloc(outImage.numChannels * sizeof(float*));
     for (i = 0; i < outImage.numChannels; i++) {
-        outImage.data[i] = (unsigned char*)malloc(outImage.width * outImage.height * sizeof(unsigned char));
+        outImage.data[i] = (float*)malloc(outImage.width * outImage.height * sizeof(float));
     }
 
     // generate gaussian filter: store it as a single channel image
@@ -204,30 +251,39 @@ int main(int argc, char *argv[])
         printf("Iteration %d/%d\n", i+1, iterations);
         // reset data
         for (j = 0; j < outImage.numChannels; j++) {
-            bzero(outImage.data[j], outImage.width * outImage.height * sizeof(unsigned char));
+            bzero(outImage.data[j], outImage.width * outImage.height * sizeof(float));
         }
 
         start = rdtsc();
-        kernel(&outImage, &image, &filter);
+        blur(&outImage, &inImage, &filter);
         end = rdtsc();
         sum += (end - start);
     }
 
+    Image outImageChar;
+    outImageChar.numChannels = outImage.numChannels;
+    outImageChar.height = outImage.height;
+    outImageChar.width = outImage.width;
+    outImageChar.data = (unsigned char**)malloc(outImageChar.numChannels * sizeof(unsigned char*));
+    for (c = 0; c < outImageChar.numChannels; c++) {
+        outImageChar.data[c] = (unsigned char*)malloc(outImageChar.width * outImageChar.height * sizeof(unsigned char));
+    }
+
+    // scale the image back to unsigned char
+    for (c = 0; c < outImage.numChannels; c++) {
+        for (i = 0; i < outImage.height; i++) {
+            for (j = 0; j < outImage.width; j++) {
+                outImageChar.data[c][i*outImage.width + j] =
+                    outImage.data[c][i*outImage.width + j] * UCHAR_MAX;
+            }
+        }
+    }
+
     printf("Saving blurred image\n");
-    saveImage(&outImage, "newImage.png");
+    saveImage(&outImageChar, "newImage.png");
 
-    // since we are using a 5x5 filter, there will be 25 fma operations per 
-    // pixel, which amounts to 50 floating point ops per pixel
-    int channels = outImage.numChannels;
-    int height = outImage.height;
-    int width = outImage.width;
-    // (multiply+add) * (filterWidth * filterHeight) * (imageWidth * imageHeight) * imageChannels
-    float flops = 2.0 * 5.0*5.0 * height * width * channels;
-    // cycles / (cycles/second) = seconds
-    float gseconds = (float)sum / (2.4);
-    float gflops = flops / gseconds;
-
-    printf("%f gflops\n", gflops);
+    // just print out number of cycles
+    printf("cycles: %f\n", sum * (3.2 / 2.4));
 
     // free here
     // image

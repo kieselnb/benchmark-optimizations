@@ -2,7 +2,7 @@
 
 EXE=blur
 
-CFLAGS=-Wall -O3 -march=native
+CFLAGS=-Wall -march=native -O3
 
 # stb image needs math library (pow)
 LDFLAGS=-lm
