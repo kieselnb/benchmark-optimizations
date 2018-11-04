@@ -3,30 +3,19 @@
 close all
 clear
 
+%% generate test sizes file first
+i = 8;
+i = [i 64:64:4096];
+imageSizes = [i' i'];
+dlmwrite('test-sizes.txt', imageSizes, 'x');
+
+%% pull in results from test files and analyze them
+
 % data from execution runs
-cycles = [  2243798848.853333;
-            1036075444.906667;
-            557935547.733333;
-            260110308.693333;
-            137921918.293333;
-            62697444.693333;
-            38269037.226667;
-            14318504.960000;
-            4229240.746667
-          ];
+cycles = dlmread('optimized/cycles.txt');
 
 % define constants first
-imageSizes = [  7680 4320;
-                5120 2880;
-                3840 2160;
-                2560 1440;
-                1920 1080;
-                1280 720;
-                960 540;
-                640 360;
-                320 180;
-              ];
-imChannels = 4;
+imChannels = 1;
 
 filterRadius = 2;
 

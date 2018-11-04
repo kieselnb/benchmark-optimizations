@@ -151,8 +151,8 @@ void loadImage(Image* image, const char *filename)
         }
     }
     
-    printf("Image details: %dx%d, %d channels\n", image->width, image->height,
-            image->channels);
+//     printf("Image details: %dx%d, %d channels\n", image->width, image->height,
+//             image->channels);
     free(imageData);
 }
 
@@ -266,11 +266,11 @@ int main(int argc, char *argv[])
     }
 
     // generate gaussian filter: store it as a single channel image
-    printf("Generating gaussian filter\n");
+//    printf("Generating gaussian filter\n");
     fImage filter;
     generateGaussian(&filter, FILTER_RADIUS, 1.0f);
 
-    printf("Performing %d blur(s)...\n", iterations);
+//    printf("Performing %d blur(s)...\n", iterations);
     // do the blur
     for (i = 0; i < iterations; i++) {
         // reset data
@@ -305,11 +305,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("Saving blurred image\n");
+//    printf("Saving blurred image\n");
     saveImage(&outImageChar, "newImage.png");
 
     // just print out number of cycles
-    printf("cycles: %f\n", (float)sum * (3.2 / 2.4) / (float)iterations);
+    printf("%f\n", (float)sum * (3.2 / 2.4) / (float)iterations);
 
     // free here
     // image
