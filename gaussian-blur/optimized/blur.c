@@ -51,11 +51,8 @@ typedef struct fImage {
 } fImage;
 
 void optKernel(float *outImage, int oStride, float *inImage, int iStride,
-        float *kernel)
+        float *filter, int filterWidth)
 {
-    // assume 4x4 output image and 5x5 filter
-    // also assume 8x8 input image to match 4x4 output + 5x5 filter
-
     // load in output elements
     __m256 out[8];
     out[0] = _mm256_loadu_ps(outImage);
@@ -68,11 +65,11 @@ void optKernel(float *outImage, int oStride, float *inImage, int iStride,
     out[7] = _mm256_loadu_ps(outImage+7*oStride);
 
     int i, j;
-    for (i = 0; i < FILTER_WIDTH; i++) {
-        for (j = 0; j < FILTER_WIDTH; j++) {
+    for (i = 0; i < filterWidth; i++) {
+        for (j = 0; j < filterWidth; j++) {
             // load up appropriate element of the mask
             __m256 mask;
-            mask = _mm256_broadcast_ss(kernel + i*5 + j);
+            mask = _mm256_broadcast_ss(filter + i*filterWidth + j);
 
             // load in input image elements
             __m256 in[8];
@@ -107,18 +104,16 @@ void optKernel(float *outImage, int oStride, float *inImage, int iStride,
 }
 
 void blur(fImage *outImage, fImage *inImage, fImage *kernel) {
-    assert(kernel->width == 5);
-    assert(kernel->height == 5);
-
     int c, ih, iw;
     for (c = 0; c < outImage->channels; c++) {
-        for (ih = 0; ih < outImage->height; ih += KERNEL_WIDTH) {
-            for (iw = 0; iw < outImage->width; iw += KERNEL_WIDTH) {
+        for (ih = 0; ih < outImage->height; ih += kernel->width) {
+            for (iw = 0; iw < outImage->width; iw += kernel->width) {
                 optKernel(outImage->data[c] + ih*outImage->width + iw,
                           outImage->width,
                           inImage->data[c] + ih*inImage->width + iw,
                           inImage->width,
-                          kernel->data[0]);
+                          kernel->data[0],
+                          kernel->width);
             }
         }
     }
@@ -151,8 +146,8 @@ void loadImage(Image* image, const char *filename)
         }
     }
     
-//     printf("Image details: %dx%d, %d channels\n", image->width, image->height,
-//             image->channels);
+    fprintf(stderr, "image details: %dx%d, %d channels\n", image->width,
+            image->height, image->channels);
     free(imageData);
 }
 
@@ -266,11 +261,10 @@ int main(int argc, char *argv[])
     }
 
     // generate gaussian filter: store it as a single channel image
-//    printf("Generating gaussian filter\n");
     fImage filter;
     generateGaussian(&filter, FILTER_RADIUS, 1.0f);
 
-//    printf("Performing %d blur(s)...\n", iterations);
+    fprintf(stderr, "performing %d blur(s)...\n", iterations);
     // do the blur
     for (i = 0; i < iterations; i++) {
         // reset data
@@ -305,7 +299,7 @@ int main(int argc, char *argv[])
         }
     }
 
-//    printf("Saving blurred image\n");
+    fprintf(stderr, "saving blurred iamge...\n");
     saveImage(&outImageChar, "newImage.png");
 
     // just print out number of cycles
