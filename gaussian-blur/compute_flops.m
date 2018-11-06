@@ -4,9 +4,13 @@ close all
 clear
 
 %% generate test sizes file first
-i = 8;
-i = [i 64:64:4096];
-imageSizes = [i' i'];
+i = [1 16:16:512];
+imageSizes = [8*i' 10*i'];
+filterRadii = [1 2 4 8 16];
+configs = [];
+for radius = filterRadii
+    configs = [configs [imageSizes radius]];
+end
 dlmwrite('test-sizes.txt', imageSizes, 'x');
 
 %% pull in results from test files and analyze them

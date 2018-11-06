@@ -21,8 +21,7 @@
 #include "../third-party/stb_image_write.h"
 
 #define KERNEL_WIDTH 8
-#define FILTER_RADIUS 2
-#define FILTER_WIDTH (2*FILTER_RADIUS + 1)
+#define KERNEL_HEIGHT 10
 
 static __inline__ unsigned long long rdtsc(void)
 {
@@ -54,7 +53,7 @@ void optKernel(float *outImage, int oStride, float *inImage, int iStride,
         float *filter, int filterWidth)
 {
     // load in output elements
-    __m256 out[8];
+    __m256 out[10];
     out[0] = _mm256_loadu_ps(outImage);
     out[1] = _mm256_loadu_ps(outImage+oStride);
     out[2] = _mm256_loadu_ps(outImage+2*oStride);
@@ -63,6 +62,8 @@ void optKernel(float *outImage, int oStride, float *inImage, int iStride,
     out[5] = _mm256_loadu_ps(outImage+5*oStride);
     out[6] = _mm256_loadu_ps(outImage+6*oStride);
     out[7] = _mm256_loadu_ps(outImage+7*oStride);
+    out[8] = _mm256_loadu_ps(outImage+8*oStride);
+    out[9] = _mm256_loadu_ps(outImage+9*oStride);
 
     int i, j;
     for (i = 0; i < filterWidth; i++) {
@@ -72,7 +73,7 @@ void optKernel(float *outImage, int oStride, float *inImage, int iStride,
             mask = _mm256_broadcast_ss(filter + i*filterWidth + j);
 
             // load in input image elements
-            __m256 in[8];
+            __m256 in[10];
             in[0] = _mm256_loadu_ps(inImage + i*iStride + j);
             in[1] = _mm256_loadu_ps(inImage + (i+1)*iStride + j);
             in[2] = _mm256_loadu_ps(inImage + (i+2)*iStride + j);
@@ -81,6 +82,8 @@ void optKernel(float *outImage, int oStride, float *inImage, int iStride,
             in[5] = _mm256_loadu_ps(inImage + (i+5)*iStride + j);
             in[6] = _mm256_loadu_ps(inImage + (i+6)*iStride + j);
             in[7] = _mm256_loadu_ps(inImage + (i+7)*iStride + j);
+            in[8] = _mm256_loadu_ps(inImage + (i+8)*iStride + j);
+            in[9] = _mm256_loadu_ps(inImage + (i+9)*iStride + j);
 
             out[0] = _mm256_fmadd_ps(in[0], mask, out[0]);
             out[1] = _mm256_fmadd_ps(in[1], mask, out[1]);
@@ -90,6 +93,8 @@ void optKernel(float *outImage, int oStride, float *inImage, int iStride,
             out[5] = _mm256_fmadd_ps(in[5], mask, out[5]);
             out[6] = _mm256_fmadd_ps(in[6], mask, out[6]);
             out[7] = _mm256_fmadd_ps(in[7], mask, out[7]);
+            out[8] = _mm256_fmadd_ps(in[8], mask, out[8]);
+            out[9] = _mm256_fmadd_ps(in[9], mask, out[9]);
         }
     }
 
@@ -101,19 +106,21 @@ void optKernel(float *outImage, int oStride, float *inImage, int iStride,
     _mm256_storeu_ps(outImage+5*oStride, out[5]);
     _mm256_storeu_ps(outImage+6*oStride, out[6]);
     _mm256_storeu_ps(outImage+7*oStride, out[7]);
+    _mm256_storeu_ps(outImage+8*oStride, out[8]);
+    _mm256_storeu_ps(outImage+9*oStride, out[9]);
 }
 
-void blur(fImage *outImage, fImage *inImage, fImage *kernel) {
+void blur(fImage *outImage, fImage *inImage, fImage *filter) {
     int c, ih, iw;
     for (c = 0; c < outImage->channels; c++) {
-        for (ih = 0; ih < outImage->height; ih += kernel->width) {
-            for (iw = 0; iw < outImage->width; iw += kernel->width) {
+        for (ih = 0; ih < outImage->height; ih += KERNEL_HEIGHT) {
+            for (iw = 0; iw < outImage->width; iw += KERNEL_WIDTH) {
                 optKernel(outImage->data[c] + ih*outImage->width + iw,
                           outImage->width,
                           inImage->data[c] + ih*inImage->width + iw,
                           inImage->width,
-                          kernel->data[0],
-                          kernel->width);
+                          filter->data[0],
+                          filter->width);
             }
         }
     }
@@ -146,7 +153,7 @@ void loadImage(Image* image, const char *filename)
         }
     }
     
-    fprintf(stderr, "image details: %dx%d, %d channels\n", image->width,
+    fprintf(stderr, "image details: %dx%d, %d channel(s)\n", image->width,
             image->height, image->channels);
     free(imageData);
 }
@@ -219,6 +226,7 @@ int main(int argc, char *argv[])
 {
     // do multiple iterations to get a steady time
     int iterations = atoi(argv[1]);
+    int filterRadius = 2;
     unsigned long long start, end, sum = 0;
 
     int i, j;
@@ -230,8 +238,8 @@ int main(int argc, char *argv[])
     // convert image to floats and add padding
     fImage inImage;
     inImage.channels = image.channels;
-    inImage.height = image.height + 2*FILTER_RADIUS;
-    inImage.width = image.width + 2*FILTER_RADIUS;
+    inImage.height = image.height + 2*filterRadius;
+    inImage.width = image.width + 2*filterRadius;
     inImage.data = (float**)malloc(inImage.channels * sizeof(float*));
     int numPixelsPerChannel = inImage.width * inImage.height;
     for (i = 0; i < inImage.channels; i++) {
@@ -243,7 +251,7 @@ int main(int argc, char *argv[])
     for (c = 0; c < image.channels; c++) {
         for (i = 0; i < image.height; i++) {
             for (j = 0; j < image.width; j++) {
-                inImage.data[c][(i+FILTER_RADIUS)*inImage.width + j+FILTER_RADIUS] =
+                inImage.data[c][(i+filterRadius)*inImage.width + j+filterRadius] =
                     (float)image.data[c][i*image.width + j] / (float)UCHAR_MAX;
             }
         }
@@ -262,7 +270,7 @@ int main(int argc, char *argv[])
 
     // generate gaussian filter: store it as a single channel image
     fImage filter;
-    generateGaussian(&filter, FILTER_RADIUS, 1.0f);
+    generateGaussian(&filter, filterRadius, 1.0f);
 
     fprintf(stderr, "performing %d blur(s)...\n", iterations);
     // do the blur

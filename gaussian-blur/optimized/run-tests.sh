@@ -16,8 +16,8 @@ fi
 touch ${RESULTS}
 
 while IFS='' read -r line || [[ -n "$line" ]]; do
-    echo ${CONV} ${ORIGINAL} -resize $line ${OUTIMAGE}
-    ${CONV} ${ORIGINAL} -resize $line ${OUTIMAGE}
+    echo ${CONV} ${ORIGINAL} -resize $line\! ${OUTIMAGE}
+    ${CONV} ${ORIGINAL} -resize $line\! ${OUTIMAGE}
     ./blur ${ITERATIONS} >> ${RESULTS}
     echo
 done < ${TESTSFILE}
