@@ -15,9 +15,12 @@ fi
 
 touch ${RESULTS}
 
-while IFS='' read -r line || [[ -n "$line" ]]; do
-    echo ${CONV} ${ORIGINAL} -resize $line\! ${OUTIMAGE}
-    ${CONV} ${ORIGINAL} -resize $line\! ${OUTIMAGE}
-    ./blur ${ITERATIONS} >> ${RESULTS}
+while read width height filter; do
+    convert="${CONV} ${ORIGINAL} -resize "$width"x"$height"! ${OUTIMAGE}"
+    echo $convert
+    $convert
+    blur="./blur ${ITERATIONS} ${filter}"
+    echo $blur
+    $blur >> ${RESULTS}
     echo
 done < ${TESTSFILE}
