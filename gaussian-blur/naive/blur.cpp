@@ -123,19 +123,21 @@ Image applyFilter(Image &image, Matrix &filter, int times)
     return newImage;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     unsigned long long sum = 0, start, end;
-    int numIterations = 100;
+    int numIterations = atoi(argv[1]);
+    int filterRadius = atoi(argv[2]);
 
-    cout << "Loading image..." << endl;
+    int filterWidth = (2 * filterRadius) + 1;
+
+    cerr << "Loading image..." << endl;
     Image image = loadImage("image.png");
     Image newImage;
 
     for (int i = 0; i < numIterations; i++) {
-        Matrix filter = getGaussian(5, 5, 10.0);
+        Matrix filter = getGaussian(filterWidth, filterWidth, 10.0);
 
-        cout << "Applying filter..." << endl;
         start = rdtsc();
         newImage = applyFilter(image, filter);
         end = rdtsc();
@@ -143,11 +145,12 @@ int main()
     }
     sum = (sum / numIterations) * (3.2 / 2.4);
 
-    cout << "Saving image..." << endl;
+    cerr << "Saving image..." << endl;
     saveImage(newImage, "newImage.png");
-    cout << "Done!" << endl;
+    cerr << "Done!" << endl;
 
-    cout << "Took " << sum << " clock cycles on average." << endl;
+    fprintf(stdout, "%f\n", sum);
+    cerr << "Took " << sum << " clock cycles on average." << endl;
     
     // since we are using a 5x5 filter, there will be 25 fma operations per 
     // pixel, which amounts to 50 floating point ops per pixel
@@ -160,7 +163,7 @@ int main()
     float gseconds = (float)sum / (2.4);
     float gflops = flops / gseconds;
 
-    cout << "flops: " << flops << endl;
-    cout << "gseconds: " << gseconds << endl;
-    cout << "gflops: " << gflops << endl;
+    cerr << "flops: " << flops << endl;
+    cerr << "gseconds: " << gseconds << endl;
+    cerr << "gflops: " << gflops << endl;
 }
