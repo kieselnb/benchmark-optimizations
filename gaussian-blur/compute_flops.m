@@ -4,8 +4,8 @@ close all
 clear
 
 %% generate test sizes file first
-KERNEL_WIDTH = 8;
-KERNEL_HEIGHT = 7;
+KERNEL_WIDTH = 16;
+KERNEL_HEIGHT = 5;
 filterRadii = 2:8;
 
 i = [1 16:16:128];
@@ -23,9 +23,6 @@ peakThrpt = 76.8;
 cycles = dlmread('optimized/cycles.txt');
 naivecycles = dlmread('naive/cycles.txt');
 
-% error correct for wrong code
-naivecycles = naivecycles .* 100 .* (2.4 / 3.2);
-
 % define constants first
 imChannels = 1;
 
@@ -39,15 +36,15 @@ imPixels = imageSizes(:,1) .* imageSizes(:,2) .* imChannels;
 flOps = imPixels .* (2.*imageSizes(:,3) + 1).^2 .* opsPerFma;
 
 % remove ones that segfaulted
-naiveflops = flOps([1:18, 20:27, 29:36, 38:45, 47:54, 56:end]);
+naiveflops = flOps([1:9, 11:18, 20:27, 29:36, 38:45, 47:54, 56:end]);
 
 % calculate time it took
-GFLOPs = flOps ./ (cycles ./ boostClock);
+gflops = flOps ./ (cycles ./ boostClock);
 naivegflops = naiveflops ./ (naivecycles ./ boostClock);
 
 % sort based on flops and reorder GFLOPs to match
 [sflops, I] = sort(flOps);
-GFLOPs = GFLOPs(I);
+gflops = gflops(I);
 
 [snaiveflops, I] = sort(naiveflops);
 naivegflops = naivegflops(I);
@@ -57,11 +54,11 @@ t = linspace(sflops(1), sflops(end));
 peak = ones(1, length(t))*peakThrpt;
 
 figure(1)
-semilogx(sflops, GFLOPs)
+semilogx(sflops, gflops)
 hold on
 semilogx(snaiveflops, naivegflops)
 semilogx(t, peak)
 title('Comparison of Baseline, High-Performance, and Theoretical Peak of Gaussian Blur')
 xlabel('Number of Floating Point Operations')
 ylabel('GFLOP/s')
-legend('High-performance Implementation', 'Peak Performance', 'Naive Implementation')
+legend('High-performance Implementation', 'Naive Implementation', 'Peak Performance')
