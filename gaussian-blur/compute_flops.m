@@ -5,7 +5,7 @@ clear
 
 %% generate test sizes file first
 KERNEL_WIDTH = 16;
-KERNEL_HEIGHT = 5;
+KERNEL_HEIGHT = 8;
 filterRadii = 2:8;
 
 i = [1 16:16:128];

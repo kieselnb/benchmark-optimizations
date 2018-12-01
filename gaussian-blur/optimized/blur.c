@@ -21,7 +21,7 @@
 #include "../third-party/stb_image_write.h"
 
 #define KERNEL_WIDTH 8
-#define KERNEL_HEIGHT 10
+#define KERNEL_HEIGHT 8
 
 #define HALF_KERNEL_HEIGHT (KERNEL_HEIGHT/2)
 #define DOUBLE_KERNEL_WIDTH (KERNEL_WIDTH*2)
@@ -63,47 +63,47 @@ void optKernelWide(float *outImage, int oStride, float *inImage, int iStride,
     __m256 in[KERNEL_HEIGHT];
     __m256 out[KERNEL_HEIGHT];
     __m256 mask;
+    __m256 temp;
 
     // load in output elements
     out[0] = _mm256_loadu_ps(outImage);
     out[1] = _mm256_loadu_ps(outImage+oStride);
     out[2] = _mm256_loadu_ps(outImage+2*oStride);
     out[3] = _mm256_loadu_ps(outImage+3*oStride);
-    out[4] = _mm256_loadu_ps(outImage+4*oStride);
-    out[5] = _mm256_loadu_ps(outImage+0*oStride + KERNEL_WIDTH);
-    out[6] = _mm256_loadu_ps(outImage+1*oStride + KERNEL_WIDTH);
-    out[7] = _mm256_loadu_ps(outImage+2*oStride + KERNEL_WIDTH);
-    out[8] = _mm256_loadu_ps(outImage+3*oStride + KERNEL_WIDTH);
-    out[9] = _mm256_loadu_ps(outImage+4*oStride + KERNEL_WIDTH);
+    out[4] = _mm256_loadu_ps(outImage+0*oStride + KERNEL_WIDTH);
+    out[5] = _mm256_loadu_ps(outImage+1*oStride + KERNEL_WIDTH);
+    out[6] = _mm256_loadu_ps(outImage+2*oStride + KERNEL_WIDTH);
+    out[7] = _mm256_loadu_ps(outImage+3*oStride + KERNEL_WIDTH);
 
     int i, j;
     for (i = 0; i < filterWidth; i++) {
+        // do initial, full register loads out here so that single-float
+        // shifts between registers can occur in the inner loop
+        in[0] = _mm256_loadu_ps(inImage + i*iStride);
+        in[1] = _mm256_loadu_ps(inImage + (i+1)*iStride);
+        in[2] = _mm256_loadu_ps(inImage + (i+2)*iStride);
+        in[3] = _mm256_loadu_ps(inImage + (i+3)*iStride);
+        in[4] = _mm256_loadu_ps(inImage + i*iStride + KERNEL_WIDTH);
+        in[5] = _mm256_loadu_ps(inImage + (i+1)*iStride + KERNEL_WIDTH);
+        in[6] = _mm256_loadu_ps(inImage + (i+2)*iStride + KERNEL_WIDTH);
+        in[7] = _mm256_loadu_ps(inImage + (i+3)*iStride + KERNEL_WIDTH);
+
         for (j = 0; j < filterWidth; j++) {
             // load up appropriate element of the mask
             mask = _mm256_broadcast_ss(filter + i*filterWidth + j);
 
-            // load in input image elements
-            in[0] = _mm256_loadu_ps(inImage + i*iStride + j);
+            // interleave the math and the shifts so that compiler/hardware
+            // can reorder as it gets open slots
             out[0] = _mm256_fmadd_ps(in[0], mask, out[0]);
-            in[1] = _mm256_loadu_ps(inImage + (i+1)*iStride + j);
+            temp = 
             out[1] = _mm256_fmadd_ps(in[1], mask, out[1]);
-            in[2] = _mm256_loadu_ps(inImage + (i+2)*iStride + j);
             out[2] = _mm256_fmadd_ps(in[2], mask, out[2]);
-            in[3] = _mm256_loadu_ps(inImage + (i+3)*iStride + j);
             out[3] = _mm256_fmadd_ps(in[3], mask, out[3]);
-            in[4] = _mm256_loadu_ps(inImage + (i+4)*iStride + j);
-            out[4] = _mm256_fmadd_ps(in[4], mask, out[4]);
             
-            in[5] = _mm256_loadu_ps(inImage + i*iStride + j + KERNEL_WIDTH);
+            out[4] = _mm256_fmadd_ps(in[4], mask, out[4]);
             out[5] = _mm256_fmadd_ps(in[5], mask, out[5]);
-            in[6] = _mm256_loadu_ps(inImage + i*iStride + j + KERNEL_WIDTH);
             out[6] = _mm256_fmadd_ps(in[6], mask, out[6]);
-            in[7] = _mm256_loadu_ps(inImage + i*iStride + j + KERNEL_WIDTH);
             out[7] = _mm256_fmadd_ps(in[7], mask, out[7]);
-            in[8] = _mm256_loadu_ps(inImage + i*iStride + j + KERNEL_WIDTH);
-            out[8] = _mm256_fmadd_ps(in[8], mask, out[8]);
-            in[9] = _mm256_loadu_ps(inImage + i*iStride + j + KERNEL_WIDTH);
-            out[9] = _mm256_fmadd_ps(in[9], mask, out[9]);
         }
     }
 
@@ -111,12 +111,10 @@ void optKernelWide(float *outImage, int oStride, float *inImage, int iStride,
     _mm256_storeu_ps(outImage+oStride, out[1]);
     _mm256_storeu_ps(outImage+2*oStride, out[2]);
     _mm256_storeu_ps(outImage+3*oStride, out[3]);
-    _mm256_storeu_ps(outImage+4*oStride, out[4]);
-    _mm256_storeu_ps(outImage+0*oStride + KERNEL_WIDTH, out[5]);
-    _mm256_storeu_ps(outImage+1*oStride + KERNEL_WIDTH, out[6]);
-    _mm256_storeu_ps(outImage+2*oStride + KERNEL_WIDTH, out[7]);
-    _mm256_storeu_ps(outImage+3*oStride + KERNEL_WIDTH, out[8]);
-    _mm256_storeu_ps(outImage+4*oStride + KERNEL_WIDTH, out[9]);
+    _mm256_storeu_ps(outImage+0*oStride + KERNEL_WIDTH, out[4]);
+    _mm256_storeu_ps(outImage+1*oStride + KERNEL_WIDTH, out[5]);
+    _mm256_storeu_ps(outImage+2*oStride + KERNEL_WIDTH, out[6]);
+    _mm256_storeu_ps(outImage+3*oStride + KERNEL_WIDTH, out[7]);
 }
 
 /**
