@@ -20,7 +20,7 @@
 #include "../third-party/stb_image_write.h"
 
 #define KERNEL_WIDTH 8
-#define KERNEL_HEIGHT 10
+#define KERNEL_HEIGHT 8
 
 #define HALF_KERNEL_HEIGHT (KERNEL_HEIGHT/2)
 #define DOUBLE_KERNEL_WIDTH (KERNEL_WIDTH*2)
@@ -66,12 +66,10 @@ void optKernelWide(float *outImage, int oStride, float *inImage, int iStride,
     out[1] = _mm256_load_ps(outImage +   oStride);
     out[2] = _mm256_load_ps(outImage + 2*oStride);
     out[3] = _mm256_load_ps(outImage + 3*oStride);
-    out[4] = _mm256_load_ps(outImage + 4*oStride);
-    out[5] = _mm256_load_ps(outImage + 0*oStride + KERNEL_WIDTH);
-    out[6] = _mm256_load_ps(outImage + 1*oStride + KERNEL_WIDTH);
-    out[7] = _mm256_load_ps(outImage + 2*oStride + KERNEL_WIDTH);
-    out[8] = _mm256_load_ps(outImage + 3*oStride + KERNEL_WIDTH);
-    out[9] = _mm256_load_ps(outImage + 4*oStride + KERNEL_WIDTH);
+    out[4] = _mm256_load_ps(outImage + 0*oStride + KERNEL_WIDTH);
+    out[5] = _mm256_load_ps(outImage + 1*oStride + KERNEL_WIDTH);
+    out[6] = _mm256_load_ps(outImage + 2*oStride + KERNEL_WIDTH);
+    out[7] = _mm256_load_ps(outImage + 3*oStride + KERNEL_WIDTH);
 
     int i, j;
     for (i = 0; i < filterWidth; i++) {
@@ -82,26 +80,22 @@ void optKernelWide(float *outImage, int oStride, float *inImage, int iStride,
             // interleave the math and the shifts so that compiler/hardware
             // can reorder as it gets open slots
             in[0] = _mm256_load_ps(inImage + i*iStride + j);
-            out[0] = _mm256_fmadd_ps(in[0], mask, out[0]);
             in[1] = _mm256_load_ps(inImage + (i+1)*iStride + j);
-            out[1] = _mm256_fmadd_ps(in[1], mask, out[1]);
             in[2] = _mm256_load_ps(inImage + (i+2)*iStride + j);
-            out[2] = _mm256_fmadd_ps(in[2], mask, out[2]);
             in[3] = _mm256_load_ps(inImage + (i+3)*iStride + j);
+            in[4] = _mm256_load_ps(inImage + i*iStride + KERNEL_WIDTH + j);
+            in[5] = _mm256_load_ps(inImage + (i+1)*iStride + KERNEL_WIDTH + j);
+            in[6] = _mm256_load_ps(inImage + (i+2)*iStride + KERNEL_WIDTH + j);
+            in[7] = _mm256_load_ps(inImage + (i+3)*iStride + KERNEL_WIDTH + j);
+
+            out[0] = _mm256_fmadd_ps(in[0], mask, out[0]);
+            out[1] = _mm256_fmadd_ps(in[1], mask, out[1]);
+            out[2] = _mm256_fmadd_ps(in[2], mask, out[2]);
             out[3] = _mm256_fmadd_ps(in[3], mask, out[3]);
-            in[4] = _mm256_load_ps(inImage + (i+4)*iStride + j);
             out[4] = _mm256_fmadd_ps(in[4], mask, out[4]);
-            
-            in[5] = _mm256_load_ps(inImage + i*iStride + KERNEL_WIDTH + j);
             out[5] = _mm256_fmadd_ps(in[5], mask, out[5]);
-            in[6] = _mm256_load_ps(inImage + (i+1)*iStride + KERNEL_WIDTH + j);
             out[6] = _mm256_fmadd_ps(in[6], mask, out[6]);
-            in[7] = _mm256_load_ps(inImage + (i+2)*iStride + KERNEL_WIDTH + j);
             out[7] = _mm256_fmadd_ps(in[7], mask, out[7]);
-            in[8] = _mm256_load_ps(inImage + (i+3)*iStride + KERNEL_WIDTH + j);
-            out[8] = _mm256_fmadd_ps(in[8], mask, out[8]);
-            in[9] = _mm256_load_ps(inImage + (i+4)*iStride + KERNEL_WIDTH + j);
-            out[9] = _mm256_fmadd_ps(in[9], mask, out[9]);
         }
     }
 
@@ -109,12 +103,10 @@ void optKernelWide(float *outImage, int oStride, float *inImage, int iStride,
     _mm256_store_ps(outImage+oStride, out[1]);
     _mm256_store_ps(outImage+2*oStride, out[2]);
     _mm256_store_ps(outImage+3*oStride, out[3]);
-    _mm256_store_ps(outImage+4*oStride, out[4]);
-    _mm256_store_ps(outImage+0*oStride + KERNEL_WIDTH, out[5]);
-    _mm256_store_ps(outImage+1*oStride + KERNEL_WIDTH, out[6]);
-    _mm256_store_ps(outImage+2*oStride + KERNEL_WIDTH, out[7]);
-    _mm256_store_ps(outImage+3*oStride + KERNEL_WIDTH, out[8]);
-    _mm256_store_ps(outImage+4*oStride + KERNEL_WIDTH, out[9]);
+    _mm256_store_ps(outImage+0*oStride + KERNEL_WIDTH, out[4]);
+    _mm256_store_ps(outImage+1*oStride + KERNEL_WIDTH, out[5]);
+    _mm256_store_ps(outImage+2*oStride + KERNEL_WIDTH, out[6]);
+    _mm256_store_ps(outImage+3*oStride + KERNEL_WIDTH, out[7]);
 }
 
 void blur(fImage *outImage, fImage *inImage, fImage *filter)

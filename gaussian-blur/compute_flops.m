@@ -5,7 +5,7 @@ clear
 
 %% generate test sizes file first
 KERNEL_WIDTH = 16;
-KERNEL_HEIGHT = 5;
+KERNEL_HEIGHT = 8;
 filterRadii = 2:8;
 
 i = 1:8;
@@ -40,7 +40,8 @@ imPixels = imageSizes(:,1) .* imageSizes(:,2) .* imChannels;
 flOps = imPixels .* (2.*imageSizes(:,3) + 1).^2 .* opsPerFma;
 
 % remove ones that segfaulted
-naiveflops = flOps([1:8, 10:16, 18:24, 27:32, 35:40 43:48 52:end]);
+naiveflops = flOps([1:16 18:24 26:32 34:40 42:48 51:end]);
+% naiveflops = flOps([1:8, 10:16, 18:24, 27:32, 35:40 43:48 52:end]);
 
 % calculate time it took
 gflops = flOps ./ (cycles ./ boostClock);
