@@ -5,10 +5,10 @@ clear
 
 %% generate test sizes file first
 KERNEL_WIDTH = 16;
-KERNEL_HEIGHT = 8;
+KERNEL_HEIGHT = 5;
 filterRadii = 2:8;
 
-i = [1 2:2:32];
+i = 1:8;
 imageSizes = [];
 for filterRadius = filterRadii
     imageSizes = [imageSizes; [KERNEL_WIDTH*i' KERNEL_HEIGHT*i' (ones(1,length(i))*filterRadius)']];
@@ -40,18 +40,18 @@ imPixels = imageSizes(:,1) .* imageSizes(:,2) .* imChannels;
 flOps = imPixels .* (2.*imageSizes(:,3) + 1).^2 .* opsPerFma;
 
 % remove ones that segfaulted
-% naiveflops = flOps([1:27, 29:36, 38:45, 47:54, 56:end]);
+naiveflops = flOps([1:8, 10:16, 18:24, 27:32, 35:40 43:48 52:end]);
 
 % calculate time it took
 gflops = flOps ./ (cycles ./ boostClock);
-% naivegflops = naiveflops ./ (naivecycles ./ boostClock);
+naivegflops = naiveflops ./ (naivecycles ./ boostClock);
 
 % sort based on flops and reorder GFLOPs to match
 [sflops, I] = sort(flOps);
 gflops = gflops(I);
 
-% [snaiveflops, I] = sort(naiveflops);
-% naivegflops = naivegflops(I);
+[snaiveflops, I] = sort(naiveflops);
+naivegflops = naivegflops(I);
 
 % generate indices at which to plot peak
 t = linspace(sflops(1), sflops(end));
@@ -59,8 +59,8 @@ peak = ones(1, length(t))*peakThrpt;
 
 figure(1)
 plot(sflops, gflops)
-hold on
-% plot(snaiveflops, naivegflops)
+hold on; grid on;
+plot(snaiveflops, naivegflops)
 plot(t, peak)
 title('Comparison of Baseline, High-Performance, and Theoretical Peak of Gaussian Blur')
 xlabel('Number of Floating Point Operations')
