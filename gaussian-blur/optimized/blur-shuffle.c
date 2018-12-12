@@ -32,6 +32,11 @@ static __inline__ unsigned long long rdtsc(void)
     return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
 }
 
+#define SHUFFLE(x) \
+    t0 = _mm256_permute_ps(x, 0x39); \
+    t1 = _mm256_permute2f128_ps(t0, t0, 0x81); \
+    x = _mm256_blend_ps(t0, t1, 0x88);
+
 /**
  * Stores an image in row-major format. Each color channel is accessed from
  * the top level (e.g. data[channel][pixel]) so that pixels of the same channel
@@ -61,52 +66,78 @@ void optKernelWide(float *outImage, int oStride, float *inImage, int iStride,
     __m256 out[KERNEL_HEIGHT];
     __m256 mask;
 
+    // predeclare temps for shuffle macro
+    __m256 t0, t1;
+
     // load in output elements
-    out[0] = _mm256_load_ps(outImage);
-    out[1] = _mm256_load_ps(outImage +   oStride);
-    out[2] = _mm256_load_ps(outImage + 2*oStride);
-    out[3] = _mm256_load_ps(outImage + 3*oStride);
-    out[4] = _mm256_load_ps(outImage + 0*oStride + KERNEL_WIDTH);
-    out[5] = _mm256_load_ps(outImage + 1*oStride + KERNEL_WIDTH);
-    out[6] = _mm256_load_ps(outImage + 2*oStride + KERNEL_WIDTH);
-    out[7] = _mm256_load_ps(outImage + 3*oStride + KERNEL_WIDTH);
+    out[0] = _mm256_loadu_ps(outImage);
+    out[1] = _mm256_loadu_ps(outImage+oStride);
+    out[2] = _mm256_loadu_ps(outImage+2*oStride);
+    out[3] = _mm256_loadu_ps(outImage+3*oStride);
+    out[4] = _mm256_loadu_ps(outImage+0*oStride + KERNEL_WIDTH);
+    out[5] = _mm256_loadu_ps(outImage+1*oStride + KERNEL_WIDTH);
+    out[6] = _mm256_loadu_ps(outImage+2*oStride + KERNEL_WIDTH);
+    out[7] = _mm256_loadu_ps(outImage+3*oStride + KERNEL_WIDTH);
 
     int i, j;
     for (i = 0; i < filterWidth; i++) {
+        // do initial loading here - values in the registers will then be
+        // shuffled and a single new value brought in
+        in[0] = _mm256_loadu_ps(inImage + i*iStride);
+        in[1] = _mm256_loadu_ps(inImage + (i+1)*iStride);
+        in[2] = _mm256_loadu_ps(inImage + (i+2)*iStride);
+        in[3] = _mm256_loadu_ps(inImage + (i+3)*iStride);
+
+        in[4] = _mm256_loadu_ps(inImage + i*iStride + KERNEL_WIDTH);
+        in[5] = _mm256_loadu_ps(inImage + (i+1)*iStride + KERNEL_WIDTH);
+        in[6] = _mm256_loadu_ps(inImage + (i+2)*iStride + KERNEL_WIDTH);
+        in[7] = _mm256_loadu_ps(inImage + (i+3)*iStride + KERNEL_WIDTH);
+
         for (j = 0; j < filterWidth; j++) {
             // load up appropriate element of the mask
             mask = _mm256_broadcast_ss(filter + i*filterWidth + j);
 
             // interleave the math and the shifts so that compiler/hardware
             // can reorder as it gets open slots
-            in[0] = _mm256_load_ps(inImage + i*iStride + j);
-            in[1] = _mm256_load_ps(inImage + (i+1)*iStride + j);
-            in[2] = _mm256_load_ps(inImage + (i+2)*iStride + j);
-            in[3] = _mm256_load_ps(inImage + (i+3)*iStride + j);
-            in[4] = _mm256_load_ps(inImage + i*iStride + KERNEL_WIDTH + j);
-            in[5] = _mm256_load_ps(inImage + (i+1)*iStride + KERNEL_WIDTH + j);
-            in[6] = _mm256_load_ps(inImage + (i+2)*iStride + KERNEL_WIDTH + j);
-            in[7] = _mm256_load_ps(inImage + (i+3)*iStride + KERNEL_WIDTH + j);
-
             out[0] = _mm256_fmadd_ps(in[0], mask, out[0]);
+            SHUFFLE(in[0]);
+            in[0][7] = in[4][0];
+
             out[1] = _mm256_fmadd_ps(in[1], mask, out[1]);
+            SHUFFLE(in[1]);
+            in[1][7] = in[5][0];
+
             out[2] = _mm256_fmadd_ps(in[2], mask, out[2]);
+            SHUFFLE(in[2]);
+            in[2][7] = in[6][0];
+
             out[3] = _mm256_fmadd_ps(in[3], mask, out[3]);
+            SHUFFLE(in[3]);
+            in[3][7] = in[7][0];
+
+
             out[4] = _mm256_fmadd_ps(in[4], mask, out[4]);
+            in[4] = _mm256_loadu_ps(inImage + i*iStride + KERNEL_WIDTH + j+1);
+
             out[5] = _mm256_fmadd_ps(in[5], mask, out[5]);
+            in[5] = _mm256_loadu_ps(inImage + (i+1)*iStride + KERNEL_WIDTH + j+1);
+
             out[6] = _mm256_fmadd_ps(in[6], mask, out[6]);
+            in[6] = _mm256_loadu_ps(inImage + (i+2)*iStride + KERNEL_WIDTH + j+1);
+
             out[7] = _mm256_fmadd_ps(in[7], mask, out[7]);
+            in[7] = _mm256_loadu_ps(inImage + (i+3)*iStride + KERNEL_WIDTH + j+1);
         }
     }
 
-    _mm256_store_ps(outImage, out[0]);
-    _mm256_store_ps(outImage+oStride, out[1]);
-    _mm256_store_ps(outImage+2*oStride, out[2]);
-    _mm256_store_ps(outImage+3*oStride, out[3]);
-    _mm256_store_ps(outImage+0*oStride + KERNEL_WIDTH, out[4]);
-    _mm256_store_ps(outImage+1*oStride + KERNEL_WIDTH, out[5]);
-    _mm256_store_ps(outImage+2*oStride + KERNEL_WIDTH, out[6]);
-    _mm256_store_ps(outImage+3*oStride + KERNEL_WIDTH, out[7]);
+    _mm256_storeu_ps(outImage, out[0]);
+    _mm256_storeu_ps(outImage+oStride, out[1]);
+    _mm256_storeu_ps(outImage+2*oStride, out[2]);
+    _mm256_storeu_ps(outImage+3*oStride, out[3]);
+    _mm256_storeu_ps(outImage+0*oStride + KERNEL_WIDTH, out[4]);
+    _mm256_storeu_ps(outImage+1*oStride + KERNEL_WIDTH, out[5]);
+    _mm256_storeu_ps(outImage+2*oStride + KERNEL_WIDTH, out[6]);
+    _mm256_storeu_ps(outImage+3*oStride + KERNEL_WIDTH, out[7]);
 }
 
 void blur(fImage *outImage, fImage *inImage, fImage *filter)
@@ -238,7 +269,7 @@ int main(int argc, char *argv[])
     inImage.channels = image.channels;
     inImage.height = image.height + 2*filterRadius;
     inImage.width = image.width + 2*filterRadius;
-    posix_memalign((void**)&(inImage.data), 64, inImage.channels * sizeof(float*));
+    posix_memalign((void**)&(inImage.data), 32, inImage.channels * sizeof(float*));
     int numPixelsPerChannel = inImage.width * inImage.height;
     for (i = 0; i < inImage.channels; i++) {
         posix_memalign((void**)&(inImage.data[i]), 32, numPixelsPerChannel * sizeof(float));
@@ -260,7 +291,7 @@ int main(int argc, char *argv[])
     outImage.channels = image.channels;
     outImage.height = image.height;
     outImage.width = image.width;
-    posix_memalign((void**)&(outImage.data), 64, outImage.channels * sizeof(float*));
+    posix_memalign((void**)&(outImage.data), 32, outImage.channels * sizeof(float*));
     numPixelsPerChannel = outImage.width * outImage.height;
     for (i = 0; i < outImage.channels; i++) {
         posix_memalign((void**)&(outImage.data[i]), 32, numPixelsPerChannel * sizeof(float));
@@ -317,17 +348,14 @@ int main(int argc, char *argv[])
         free(image.data[i]);
     }
     free(image.data);
-
     // filter - we know it's 1-D, so no loop
     free(filter.data[0]);
     free(filter.data);
-
     // out image
     for (i = 0; i < outImage.channels; i++) {
         free(outImage.data[i]);
     }
     free(outImage.data);
-
     // out image char
     for (i = 0; i < outImageChar.channels; i++) {
         free(outImageChar.data[i]);

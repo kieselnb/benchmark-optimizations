@@ -143,14 +143,14 @@ int main(int argc, char* argv[])
         end = rdtsc();
         sum += (end - start);
     }
-    sum = (sum / numIterations) * (3.2 / 2.4);
+    float floatSum = ((float)sum / (float)numIterations) * (3.2 / 2.4);
 
     cerr << "Saving image..." << endl;
     saveImage(newImage, "newImage.png");
     cerr << "Done!" << endl;
 
-    fprintf(stdout, "%f\n", sum);
-    cerr << "Took " << sum << " clock cycles on average." << endl;
+    fprintf(stdout, "%f\n", floatSum);
+    cerr << "Took " << floatSum << " clock cycles on average." << endl;
     
     // since we are using a 5x5 filter, there will be 25 fma operations per 
     // pixel, which amounts to 50 floating point ops per pixel

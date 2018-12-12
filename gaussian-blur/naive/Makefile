@@ -2,7 +2,7 @@
 
 CUDACC=nvcc
 
-EXE=blur blur-cuda
+EXE=blur
 
 CXXFLAGS=-Wall -O2 -march=native
 

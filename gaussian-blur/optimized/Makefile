@@ -1,16 +1,18 @@
 # builds the optimized version of Gaussian blur
 
-EXE=blur
+EXES=blur blur-shuffle
 
-CFLAGS=-Wall -march=native -O3
+CFLAGS=-Wall -march=native -O2
 
 # stb image needs math library (pow)
 LDFLAGS=-lm
 
 .PHONY: all
-all: $(EXE)
+all: blur blur-shuffle
 
-$(EXE): blur.c
+blur: blur.c
+
+blur-shuffle: blur-shuffle.c
 
 clean:
-	rm -f $(EXE) *.o
+	rm -f blur blur-shuffle *.o
