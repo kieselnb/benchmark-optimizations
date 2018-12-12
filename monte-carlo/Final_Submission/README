@@ -1,0 +1,16 @@
+There are three implementations:
+- baseline.c : with the baseline implementation of the algorithm.
+- optimized.c : with the optimized implementation of the algorithm.
+- parallel.c : with the parallel implementation of the algorithm.
+
+To Compile:
+make compile
+
+To clean:
+make cleanup
+
+To run baseline.c and optimized.c and see single_core.csv
+make run_single_core
+
+To run parallel.c and see parallel_cores.csv 
+make run_parallel  
