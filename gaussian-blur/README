@@ -1,0 +1,53 @@
+################################################################################
+Gaussian Blur
+
+Optimized for Intel Haswell
+################################################################################
+
+###########
+Quick Start
+
+Optimized benchmark:
+    cd optimized
+    make
+    ./run-tests.sh
+
+Naive benchmark:
+    cd ../naive
+    make
+    ./run-tests.sh
+
+
+########
+Overview
+
+The original naive implementation (modified to use the third-party image
+loading libraries) is located in naive/blur.cpp. The most up-to-date optimized
+implementation is located in optimized/. See the git history for how this
+implementation evolved throughout the course of this project.
+
+
+#########
+Compiling
+
+To compile each implementation, go into each directory and run 'make'
+
+
+#######
+Running
+
+Prereqs: The test-sizes.txt file is needed to run the benchmarks. This file
+         can be generated using the first part of the MATLAB script
+         compute_flops.m. An example is included in the repository.
+
+There is a script in each directory called 'run-tests.sh'. This script runs
+the appropriate implementation with the test sized defined in test-sizes.txt.
+The number of cycles is output into a cycles.txt file, which is then read
+by the MATLAB script to produce a comparison plot.
+
+
+################
+Acknowledgements
+
+Third party source (located in ./third-party/):
+    - The image loading and saving API is courtesy of github:nothings.

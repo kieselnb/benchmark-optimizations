@@ -80,21 +80,27 @@ void optKernelWide(float *outImage, int oStride, float *inImage, int iStride,
             // interleave the math and the shifts so that compiler/hardware
             // can reorder as it gets open slots
             in[0] = _mm256_load_ps(inImage + i*iStride + j);
-            in[1] = _mm256_load_ps(inImage + (i+1)*iStride + j);
-            in[2] = _mm256_load_ps(inImage + (i+2)*iStride + j);
-            in[3] = _mm256_load_ps(inImage + (i+3)*iStride + j);
-            in[4] = _mm256_load_ps(inImage + i*iStride + KERNEL_WIDTH + j);
-            in[5] = _mm256_load_ps(inImage + (i+1)*iStride + KERNEL_WIDTH + j);
-            in[6] = _mm256_load_ps(inImage + (i+2)*iStride + KERNEL_WIDTH + j);
-            in[7] = _mm256_load_ps(inImage + (i+3)*iStride + KERNEL_WIDTH + j);
-
             out[0] = _mm256_fmadd_ps(in[0], mask, out[0]);
+
+            in[1] = _mm256_load_ps(inImage + (i+1)*iStride + j);
             out[1] = _mm256_fmadd_ps(in[1], mask, out[1]);
+
+            in[2] = _mm256_load_ps(inImage + (i+2)*iStride + j);
             out[2] = _mm256_fmadd_ps(in[2], mask, out[2]);
+
+            in[3] = _mm256_load_ps(inImage + (i+3)*iStride + j);
             out[3] = _mm256_fmadd_ps(in[3], mask, out[3]);
+
+            in[4] = _mm256_load_ps(inImage + i*iStride + KERNEL_WIDTH + j);
             out[4] = _mm256_fmadd_ps(in[4], mask, out[4]);
+
+            in[5] = _mm256_load_ps(inImage + (i+1)*iStride + KERNEL_WIDTH + j);
             out[5] = _mm256_fmadd_ps(in[5], mask, out[5]);
+
+            in[6] = _mm256_load_ps(inImage + (i+2)*iStride + KERNEL_WIDTH + j);
             out[6] = _mm256_fmadd_ps(in[6], mask, out[6]);
+
+            in[7] = _mm256_load_ps(inImage + (i+3)*iStride + KERNEL_WIDTH + j);
             out[7] = _mm256_fmadd_ps(in[7], mask, out[7]);
         }
     }
