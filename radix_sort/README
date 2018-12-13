@@ -1,0 +1,11 @@
+########################################
+########   README FOR RADIX SORT #######
+
+make fastest : compiles the current best implemetation of radix sort
+               should give somewhere close to 6200 cycles
+make fast    : compiles the best scalar version without using any SIMD instructions
+               should give somwhere close to 9000 cycles
+make slow    : compiles the baseline implementation from GeeksForGeeks
+make library_sort : compiles the quick sort routine from GCC.
+
+
