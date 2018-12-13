@@ -4,6 +4,13 @@ Gaussian Blur
 Optimized for Intel Haswell
 ################################################################################
 
+############
+Requirements
+
+ImageMagick
+    The run-tests.sh scripts rely on 'convert' provided by ImageMagick
+
+
 ###########
 Quick Start
 

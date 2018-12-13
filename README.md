@@ -1,6 +1,6 @@
 # Benchmark Optimizations
 
-### Authors: Rajnish Agarwal, Nidhi Bhatia, and Nick Kiesel
+### Authors: Rajnish Aggarwal, Nidhi Bhatia, and Nick Kiesel
 #### 18-645: How to Write Fast Code
 
 The purpose of this project is to close the gap between CPU and GPU performance metrics. To do so,
